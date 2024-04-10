@@ -6,31 +6,30 @@ editor: visual
 ---
 
 ```{r}
-library(httr)
-library(jsonlite)
+library(tidyverse)
+```
 
-# URL for the AJAX request
-pid <- 1  # or any other value you want
-my_url <- paste0("/json/odds/event_", pid, "_final.json?")
+```{r}
+intrade08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/intrade08.csv") %>%
+  select(2:8)
 
-# Make the AJAX request
-response <- GET(my_url)
+intrade12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/intrade12.csv") %>%
+  select(2:8)
 
-# Check if the request was successful
-if (http_type(response) == "application/json") {
-  # Parse JSON response
-  json_data <- content(response, "text")  # Get JSON content as text
-  data <- fromJSON(json_data)  # Parse JSON into R object
-  
-  # Access the data as needed
-  # For example, if you want to access the legend_candidates array
-  legend_candidates <- data$poll$rcp_avg[[1]]$candidates
-  
-  # Print first few records
-  print(head(legend_candidates))
-} else {
-  cat("Request failed with status:", http_status(response))
-}
+polls08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/polls08.csv")
+polls12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/polls12.csv")
+
+results_scrape <- read_html("https://en.wikipedia.org/wiki/2008_United_States_presidential_election")
+
+election_tables <- results_scrape %>% html_nodes("table.wikitable")
+
+results_table <- election_tables[[10]]
+
+results_df <- results_table %>% html_table(header = T) %>%
+  colnames(c("", "", "Barack ObamaDemocratic", "Barack ObamaDemocratic", "Barack ObamaDemocratic", "John McCainRepublican", "John McCainRepublican", "John McCainRepublican", "Ralph NaderIndependent", "Ralph NaderIndependent", "Ralph NaderIndependent", "Bob BarrLibertarian", "Bob BarrLibertarian", "Bob BarrLibertarian", "Chuck BaldwinConstitution", "Chuck BaldwinConstitution", "Chuck BaldwinConstitution", "Cynthia McKinneyGreen", "Cynthia McKinneyGreen", "Cynthia McKinneyGreen", "Others", "Others", "Others", "Margin", "Margin", "Tota
+))
+
+results_df[-1,]
 
 ```
 
