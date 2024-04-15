@@ -7,31 +7,71 @@ editor: visual
 
 ```{r}
 library(tidyverse)
+library(rvest)
 ```
 
 ```{r}
+states_df <- 
+  tibble(state = state.name) %>%
+  bind_cols(tibble(abb = state.abb)) %>% 
+  bind_rows(tibble(state = "District of Columbia", abb = "DC"))
+
 intrade08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/intrade08.csv") %>%
-  select(2:8) %>%
-  mutate(statename = as.factor(statename))
+  select(2:7) %>%
+  mutate(statename = as.factor(statename),
+         democrat_candidate = "Barack Obama",
+         republican_candidate = "John McCain") %>%
+  rename(#"state" = "statename",
+         "democrat" = "PriceD",
+         "republican" = "PriceR")
 
 intrade12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/intrade12.csv") %>%
-  select(2:8) %>%
-  mutate(statename = as.factor(statename))
+  select(2:7) %>%
+  mutate(statename = as.factor(statename),
+         democrat_candidate = "Barack Obama",
+         republican_candidate = "Mitt Romney") %>%
+  rename(#"state" = "statename",
+         "democrat" = "PriceD",
+         "republican" = "PriceR")
 
 polls08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/polls08.csv") %>%
-  mutate(state = as.factor(state))
+  rename("statename" = "state") %>%
+  mutate(statename = as.factor(statename), 
+         democrat_candidate = "Barack Obama",
+         republican_candidate = "John McCain") %>%
+  left_join(states_df, by = c("statename" = "abb")) %>%
+  rename("democrat" = "Obama",
+         "republican" = "McCain",
+         "date" = "middate") %>%
+  select(-statename) %>%
+  select(state, everything())
 
 polls12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/polls12.csv") %>%
-  mutate(state = as.factor(state))
+  select(2:6) %>%
+  rename("statename" = "state") %>%
+  mutate(statename = as.factor(statename), 
+         democrat_candidate = "Barack Obama",
+         republican_candidate = "Mitt Romney") %>%
+  left_join(states_df, by = c("statename" = "abb")) %>%
+  rename("democrat" = "Obama",
+         "republican" = "Romney",
+         "date" = "middate") %>%
+  select(-statename) %>%
+  select(state, everything())
 
-results_scrape <- read_html("https://en.wikipedia.org/wiki/2008_United_States_presidential_election")
 
-election_tables <- results_scrape %>% html_nodes("table.wikitable")
+```
 
-results_table <- election_tables[[10]]
+```{r}
+## '08 election
+`2008_results_scrape` <- read_html("https://en.wikipedia.org/wiki/2008_United_States_presidential_election")
 
-results_df <- 
-  results_table %>% 
+`2008_election_tables` <- `2008_results_scrape` %>% html_nodes("table.wikitable")
+
+`2008_results_table` <- `2008_election_tables`[[10]]
+
+`2008_results_df` <- 
+  `2008_results_table` %>% 
   html_table(header = T) 
 
 new_names <- c("Column1", "Column2", 
@@ -59,10 +99,10 @@ new_names <- c("Column1", "Column2",
 
 
 # Rename the nameless columns
-names(results_df)[names(results_df) == ""] <- new_names
+names(`2008_results_df`)[names(`2008_results_df`) == ""] <- new_names
 
-results_df <-
-  results_df %>%
+`2008_results_df` <-
+  `2008_results_df` %>%
   select(1,4,7, 26) %>%
   rename("state" = "Column1",
          "democrat" = "Barack ObamaDemocratic",
@@ -72,7 +112,51 @@ results_df <-
   mutate(votes = as.numeric(str_replace_all(votes, ",", "")),
          democrat = as.numeric(str_replace_all(democrat, "%", "")),
          republican = as.numeric(str_replace_all(republican, "%", "")),
-         state = as.factor(state))
+         state = as.factor(state)) %>%
+  mutate(state = case_when(
+    state == "Nebraska†" ~ "Nebraska",
+    state == "Maine†" ~ "Maine"
+  ))
+
+
+
+## '12 Election
+`2012_results_scrape` <- read_html("https://en.wikipedia.org/wiki/2012_United_States_presidential_election")
+
+`2012_election_tables` <- `2012_results_scrape` %>% html_nodes("table.wikitable")
+
+`2012_results_table` <- `2012_election_tables`[[8]]
+
+`2012_results_df` <- 
+  `2012_results_table` %>% 
+  html_table(header = T) %>%
+  select(1,3,6,19)
+
+new_names <- c("state", "democrat", 
+               "republican", "votes")
+
+# Rename the nameless columns
+names(`2012_results_df`)[names(`2012_results_df`) == ""] <- new_names
+
+`2012_results_df` <-
+  `2012_results_df` %>%
+  rename("state" = "State/District",
+         "democrat" = "Barack ObamaDemocratic",
+         "republican" = "Mitt RomneyRepublican",
+         "votes" = "Total") %>%
+  slice(-1) %>%
+  mutate(votes = as.numeric(str_replace_all(votes, ",", "")),
+         democrat = as.numeric(str_replace_all(democrat, "%", "")),
+         republican = as.numeric(str_replace_all(republican, "%", "")),
+         state = as.factor(state)) %>%
+  mutate(state = case_when(
+    state == "Nebraska†" ~ "Nebraska",
+    state == "Maine†" ~ "Maine"
+    state == "District of ColumbiaDistrict of Columbia" ~ "District of Columbia",
+    state == "New Jersey[121]" ~ "New Jersey",
+    state == "New York[122]" ~ "New York"
+  ))
+
 
 
 ```
@@ -80,15 +164,11 @@ results_df <-
 
 
 ```{r}
-library(tidyverse)
-
-# Combine intrade08 and intrade12
 intrade_combined <- bind_rows(
   mutate(intrade08, year = 2008),
   mutate(intrade12, year = 2012)
 )
 
-# Combine polls08 and polls12
 polls_combined <- bind_rows(
   mutate(polls08, year = 2008),
   mutate(polls12, year = 2012)
@@ -111,5 +191,30 @@ stacked_df <- bind_rows(
   results_processed %>% rename(prediction = percentage)
 )
 
+```
+
+
+```{r}
+library(shiny)
+
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+    ),
+    
+    mainPanel(
+      tabsetPanel(
+        tabPanel("Plot", "plotoutput"),
+        tabPanel("Summary", "summary_output")
+      )
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  
+}
+
+shinyApp(ui, server)
 ```
 
