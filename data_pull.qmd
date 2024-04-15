@@ -11,13 +11,18 @@ library(tidyverse)
 
 ```{r}
 intrade08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/intrade08.csv") %>%
-  select(2:8)
+  select(2:8) %>%
+  mutate(statename = as.factor(statename))
 
 intrade12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/intrade12.csv") %>%
-  select(2:8)
+  select(2:8) %>%
+  mutate(statename = as.factor(statename))
 
-polls08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/polls08.csv")
-polls12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/polls12.csv")
+polls08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/polls08.csv") %>%
+  mutate(state = as.factor(state))
+
+polls12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/polls12.csv") %>%
+  mutate(state = as.factor(state))
 
 results_scrape <- read_html("https://en.wikipedia.org/wiki/2008_United_States_presidential_election")
 
@@ -25,11 +30,86 @@ election_tables <- results_scrape %>% html_nodes("table.wikitable")
 
 results_table <- election_tables[[10]]
 
-results_df <- results_table %>% html_table(header = T) %>%
-  colnames(c("", "", "Barack ObamaDemocratic", "Barack ObamaDemocratic", "Barack ObamaDemocratic", "John McCainRepublican", "John McCainRepublican", "John McCainRepublican", "Ralph NaderIndependent", "Ralph NaderIndependent", "Ralph NaderIndependent", "Bob BarrLibertarian", "Bob BarrLibertarian", "Bob BarrLibertarian", "Chuck BaldwinConstitution", "Chuck BaldwinConstitution", "Chuck BaldwinConstitution", "Cynthia McKinneyGreen", "Cynthia McKinneyGreen", "Cynthia McKinneyGreen", "Others", "Others", "Others", "Margin", "Margin", "Tota
-))
+results_df <- 
+  results_table %>% 
+  html_table(header = T) 
 
-results_df[-1,]
+new_names <- c("Column1", "Column2", 
+               "Barack_Obama_Democratic", 
+               "Barack_Obama_Democratic",
+               "Barack_Obama_Democratic", 
+               "John_McCain_Republican", 
+               "John_McCain_Republican",
+               "John_McCain_Republican", 
+               "Ralph_Nader_Independent", 
+               "Ralph_Nader_Independent",
+               "Ralph_Nader_Independent", 
+               "Bob_Barr_Libertarian", 
+               "Bob_Barr_Libertarian",
+               "Bob_Barr_Libertarian", 
+               "Chuck_Baldwin_Constitution", 
+               "Chuck_Baldwin_Constitution",
+               "Chuck_Baldwin_Constitution", 
+               "Cynthia_McKinney_Green", 
+               "Cynthia_McKinney_Green",
+               "Cynthia_McKinney_Green", 
+               "Others","Others","Others", 
+               "Margin", "Margin",
+               "Total_votes", "Total_votes")
+
+
+# Rename the nameless columns
+names(results_df)[names(results_df) == ""] <- new_names
+
+results_df <-
+  results_df %>%
+  select(1,4,7, 26) %>%
+  rename("state" = "Column1",
+         "democrat" = "Barack ObamaDemocratic",
+         "republican" = "John McCainRepublican",
+         "votes" = "Total votes") %>%
+  slice(-1) %>%
+  mutate(votes = as.numeric(str_replace_all(votes, ",", "")),
+         democrat = as.numeric(str_replace_all(democrat, "%", "")),
+         republican = as.numeric(str_replace_all(republican, "%", "")),
+         state = as.factor(state))
+
+
+```
+
+
+
+```{r}
+library(tidyverse)
+
+# Combine intrade08 and intrade12
+intrade_combined <- bind_rows(
+  mutate(intrade08, year = 2008),
+  mutate(intrade12, year = 2012)
+)
+
+# Combine polls08 and polls12
+polls_combined <- bind_rows(
+  mutate(polls08, year = 2008),
+  mutate(polls12, year = 2012)
+)
+
+# Process results_df to match the format of other datasets
+results_processed <- results_df %>%
+  gather(party, percentage, democrat, republican) %>%
+  mutate(party = factor(case_when(
+    str_detect(party, "democrat") ~ "Democrat",
+    str_detect(party, "republican") ~ "Republican"
+  )),
+  year = ifelse(year == 2008, 2008, 2012)) %>%
+  select(state, year, party, percentage)
+
+# Stack all datasets together
+stacked_df <- bind_rows(
+  intrade_combined %>% rename(prediction = obama),
+  polls_combined %>% rename(prediction = obama),
+  results_processed %>% rename(prediction = percentage)
+)
 
 ```
 
