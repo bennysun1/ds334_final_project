@@ -7,6 +7,7 @@ editor: visual
 
 ```{r}
 library(tidyverse)
+library(shiny)
 library(rvest)
 ```
 
@@ -22,8 +23,8 @@ intrade08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/P
          democrat_candidate = "Barack Obama",
          republican_candidate = "John McCain") %>%
   rename(#"state" = "statename",
-         "democrat" = "PriceD",
-         "republican" = "PriceR")
+    "democrat" = "PriceD",
+    "republican" = "PriceR")
 
 intrade12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/intrade12.csv") %>%
   select(2:7) %>%
@@ -31,8 +32,8 @@ intrade12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/P
          democrat_candidate = "Barack Obama",
          republican_candidate = "Mitt Romney") %>%
   rename(#"state" = "statename",
-         "democrat" = "PriceD",
-         "republican" = "PriceR")
+    "democrat" = "PriceD",
+    "republican" = "PriceR")
 
 polls08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/polls08.csv") %>%
   rename("statename" = "state") %>%
@@ -151,7 +152,7 @@ names(`2012_results_df`)[names(`2012_results_df`) == ""] <- new_names
          state = as.factor(state)) %>%
   mutate(state = case_when(
     state == "Nebraska†" ~ "Nebraska",
-    state == "Maine†" ~ "Maine"
+    state == "Maine†" ~ "Maine",
     state == "District of ColumbiaDistrict of Columbia" ~ "District of Columbia",
     state == "New Jersey[121]" ~ "New Jersey",
     state == "New York[122]" ~ "New York"
@@ -174,38 +175,29 @@ polls_combined <- bind_rows(
   mutate(polls12, year = 2012)
 )
 
-# Process results_df to match the format of other datasets
-results_processed <- results_df %>%
-  gather(party, percentage, democrat, republican) %>%
-  mutate(party = factor(case_when(
-    str_detect(party, "democrat") ~ "Democrat",
-    str_detect(party, "republican") ~ "Republican"
-  )),
-  year = ifelse(year == 2008, 2008, 2012)) %>%
-  select(state, year, party, percentage)
-
-# Stack all datasets together
-stacked_df <- bind_rows(
-  intrade_combined %>% rename(prediction = obama),
-  polls_combined %>% rename(prediction = obama),
-  results_processed %>% rename(prediction = percentage)
-)
 
 ```
 
 
 ```{r}
-library(shiny)
-
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
+      selectInput("data_source", "Select Data Source:",
+                  choices = c("Betting Markets" = "intrade", "Polling Data" = "polls")),
+      
+      dateRangeInput("date_range", "Select Date Range:",
+                     start = min(polls_combined$date), end = max(polls_combined$date),
+                     min = min(polls_combined$date), max = max(polls_combined$date)),
+      
+      selectInput("poll_options", "Select Polls:",
+                  choices = c("All Polls", unique(polls_combined$poll_name)))
     ),
     
     mainPanel(
       tabsetPanel(
-        tabPanel("Plot", "plotoutput"),
-        tabPanel("Summary", "summary_output")
+        tabPanel("Plot", plotOutput("plot")),
+        tabPanel("Summary", verbatimTextOutput("summary"))
       )
     )
   )
@@ -213,8 +205,41 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
+  data <- reactive({
+    data_source <- switch(input$data_source,
+                          "intrade" = intrade_combined,
+                          "polls" = {
+                            polls <- polls_combined
+                            if (input$poll_options != "All Polls") {
+                              polls <- filter(polls, poll_name == input$poll_options)
+                            }
+                            return(polls)
+                          })
+    
+    filtered_data <- subset(data_source, date >= input$date_range[1] & date <= input$date_range[2])
+    return(filtered_data)
+  })
+  
+  output$plot <- renderPlot({
+    data_source <- data()
+    ggplot(data_source, aes(x = democrat, y = republican)) +
+      geom_point() +
+      geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+      labs(x = "Democrat", y = "Republican") +
+      scale_x_continuous(labels = percent_format()) +
+      scale_y_continuous(labels = percent_format()) +
+      ggtitle("Comparison of Democrat vs Republican Support") +
+      theme_minimal()
+  })
+  
+  output$summary <- renderPrint({
+    data_source <- data()
+    summary(data_source$democrat)
+    summary(data_source$republican)
+  })
 }
 
-shinyApp(ui, server)
+shinyApp(ui = ui, server = server)
+
 ```
 
