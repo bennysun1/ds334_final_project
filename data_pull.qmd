@@ -181,7 +181,7 @@ intrade_combined <- bind_rows(
   mutate(intrade12, year = 2012)
 ) %>%
   rename("date" = "day",
-        "state" = "statename")
+         "state" = "statename")
 
 polls_combined <- bind_rows(
   mutate(polls08, year = 2008),
@@ -194,28 +194,43 @@ polls_combined <- bind_rows(
 
 ```{r}
 unique_states <- unique(intrade_combined$state) %>% sort()
-  
+unique_polls <- unique(polls_combined$Pollster) %>% sort()
+
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
-      selectInput("data_source", "Select Data Source:",
+      radioButtons("election_sel", "Election Cycle:", 
+                   choices = c("2008","2012"), 
+                   selected = "2008"),
+      
+      selectInput("data_source", "Select Data Source:", 
                   choices = c("Betting Markets" = "intrade", "Polling Data" = "polls")),
       
       dateRangeInput("date_range", "Select Date Range:",
                      start = min(polls_combined$date), end = max(polls_combined$date),
-                     min = min(polls_combined$date), max = max(polls_combined$date)),
+                     min = min(polls_combined$date), max = max(polls_combined$date)
+      ),
+      
       pickerInput("state_sel", "Select State(s):",
                   choices = unique_states, 
                   selected = unique_states,
-                  multiple = T#,
-                  #options = list(
-                    #pickerOptions(countSelectedText = )
-                  ),
+                  multiple = TRUE,
+                  options = list(
+                    `actions-box` = TRUE, 
+                    `selected-text-format` = "count > 2",
+                    `count-selected-text` = "{0}/{1} States")
+      ),
       
-      selectInput("poll_options", "Select Polls:",
-                  choices = c("All Polls", unique(polls_combined$Pollster) %>% sort()))
+      pickerInput("poll_options", "Select Poll(s):",
+                  choices = unique_polls, 
+                  selected = unique_polls,
+                  multiple = TRUE,
+                  options = list(
+                    `actions-box` = TRUE, 
+                    `selected-text-format` = "count > 2",
+                    `count-selected-text` = "{0}/{1} Polls")
+      )
     ),
-    
     mainPanel(
       tabsetPanel(
         tabPanel("Data", dataTableOutput("data_check")),
@@ -226,78 +241,87 @@ ui <- fluidPage(
   )
 )
 
-server <- function(input, output, session) {
   
-  data <- reactive({
+  server <- function(input, output, session) {
     
+    observeEvent(input$election_sel, input$data_source{
+    low_date <-
+      data_source %>%
+      filter(year == as.numeric(input$election_sel)) %>%
+      slice_min(date) %>%
+      pull(date) %>%
+      unique()
     
-    if(input$data_source == "intrade") {
-      data_source <- 
-        intrade_combined %>%
-        filter(state %in% input$state_sel) %>%
-        filter(date >= input$date_range[1]) %>%
-        filter(date <= input$date_range[2])
-    }
+    high_date <-
+      data_source %>%
+      filter(year == as.numeric(input$election_sel)) %>%
+      slice_max(date) %>%
+      pull(date) %>%
+      unique()
     
-    else {
-      data_source <-
-        polls_combined %>%
-        filter(state %in% input$state_sel) %>%
-        filter(Pollster == input$poll_options) %>% 
-        filter(date >= input$date_range[1]) %>%
-        filter(date <= input$date_range[2])
-    }
-  
-    return(data_source)
+    updateDateRangeInput(session = session,
+                         inputId = "date_range", 
+                         start = low_date, 
+                         end = high_date, 
+                         min = low_date, 
+                         max = high_date)
   })
-  
-  output$data_check <- renderDataTable({
-    data()
-  })
-  
-  output$plot <- renderPlot({
     
-    # ggplot(data(), aes(x = democrat, y = republican)) +
-    #   geom_point() +
-    #   geom_abline(intercept = 0, slope = -1, linetype = "dashed", color = "red") +
-    #   labs(x = "Democrat", y = "Republican") +
-    #   # scale_x_continuous(labels = percent_format()) +
-    #   # scale_y_continuous(labels = percent_format()) +
-    #   ggtitle("Comparison of Democrat vs Republican Support") +
-    #   theme_minimal()
+    data <- reactive({
+      
+      
+      if(input$data_source == "intrade") {
+        data_source <- 
+          intrade_combined %>%
+          filter(state %in% input$state_sel) %>%
+          filter(date >= input$date_range[1]) %>%
+          filter(date <= input$date_range[2])
+      }
+      
+      else {
+        data_source <-
+          polls_combined %>%
+          filter(state %in% input$state_sel) %>%
+          filter(Pollster == input$poll_options) %>% 
+          filter(date >= input$date_range[1]) %>%
+          filter(date <= input$date_range[2])
+      }
+      
+      return(data_source)
+    })
     
-    data() %>%
-      ggplot(aes(x = date,
-                 ))
-  })
-
-  # output$summary <- renderPrint({
-  #   data_source <- data()
-  #   summary(data_source$democrat)
-  #   summary(data_source$republican)
-  # })
-}
-
-shinyApp(ui = ui, server = server)
-
+    output$data_check <- renderDataTable({
+      data()
+    })
+    
+    output$plot <- renderPlot({
+      
+      # ggplot(data(), aes(x = democrat, y = republican)) +
+      #   geom_point() +
+      #   geom_abline(intercept = 0, slope = -1, linetype = "dashed", color = "red") +
+      #   labs(x = "Democrat", y = "Republican") +
+      #   # scale_x_continuous(labels = percent_format()) +
+      #   # scale_y_continuous(labels = percent_format()) +
+      #   ggtitle("Comparison of Democrat vs Republican Support") +
+      #   theme_minimal()
+      
+      data() %>%
+        ggplot(aes(x = date,
+        ))
+    })
+    
+    # output$summary <- renderPrint({
+    #   data_source <- data()
+    #   summary(data_source$democrat)
+    #   summary(data_source$republican)
+    # })
+  }
+  
+  shinyApp(ui = ui, server = server)
+  
 ```
-
-
-
-
-```{r}
-ds <- "polls"
-
-po <- "YouGov"
-
-data_source <- switch(ds,
-                      "intrade" = intrade_combined,
-                      "polls" = {
-                        polls <- polls_combined
-                        if (po != "All Polls") {
-                          polls <- filter(polls, Pollster == po)
-                        }
-                        return(polls)
-                      })
-```
-
+  
+  
+  
+  
+  
