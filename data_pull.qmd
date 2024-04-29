@@ -25,7 +25,13 @@ intrade08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/P
   select(2:7) %>%
   mutate(statename = as.factor(statename),
          democrat_candidate = "Barack Obama",
-         republican_candidate = "John McCain") %>%
+         republican_candidate = "John McCain",
+         pred_winner = case_when(
+           PriceD > PriceR ~ "democrat",
+           PriceR > PriceD ~ "republican",
+           .default = "Tie"
+           )
+         ) %>%
   rename(#"state" = "statename",
     "democrat" = "PriceD",
     "republican" = "PriceR") %>%
@@ -35,21 +41,31 @@ intrade12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/P
   select(2:7) %>%
   mutate(statename = as.factor(statename),
          democrat_candidate = "Barack Obama",
-         republican_candidate = "Mitt Romney") %>%
+         republican_candidate = "Mitt Romney",
+         pred_winner = case_when(
+           PriceD > PriceR ~ "democrat",
+           PriceR > PriceD ~ "republican",
+           .default = "Tie"
+           )
+         )%>%
   rename(#"state" = "statename",
     "democrat" = "PriceD",
     "republican" = "PriceR") %>%
-  filter(day <= as.Date("2008-11-08"))
+  filter(day <= as.Date("2012-11-08"))
 
 polls08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/polls08.csv") %>%
   rename("statename" = "state") %>%
   mutate(statename = as.factor(statename), 
-         democrat_candidate = "Barack Obama",
-         republican_candidate = "John McCain") %>%
+         democrat_candidate = "Barack Obama") %>%
   left_join(states_df, by = c("statename" = "abb")) %>%
   rename("democrat" = "Obama",
          "republican" = "McCain",
          "date" = "middate") %>%
+  mutate(pred_winner = case_when(
+           democrat > republican ~ "democrat",
+           republican > democrat ~ "republican",
+           .default = "Tie"
+           )) %>%
   select(-statename) %>%
   select(state, everything())
 
@@ -63,6 +79,11 @@ polls12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PRE
   rename("democrat" = "Obama",
          "republican" = "Romney",
          "date" = "middate") %>%
+  mutate(pred_winner = case_when(
+           democrat > republican ~ "democrat",
+           republican > democrat ~ "republican",
+           .default = "Tie"
+           )) %>%
   select(-statename) %>%
   select(state, everything())
 
@@ -185,10 +206,68 @@ intrade_combined <- bind_rows(
   rename("date" = "day",
          "state" = "statename")
 
+intrade_combined_election_eve <-
+  intrade_combined %>%
+  filter((year == 2008 & date == "2008-11-03") |
+           (year == 2012 & date == "2012-11-05"))
+
 polls_combined <- bind_rows(
   mutate(polls08, year = 2008),
   mutate(polls12, year = 2012)
-)
+) %>%
+  mutate(scale = 100,
+         state = as.factor(state))
+
+
+polls_combined %>%
+  filter((year == 2008 & date <= "2008-11-03")) %>%
+  group_by(date) %>%
+  summarise(democrat_avg = mean(democrat),
+            republican_avg = mean(republican)) %>%
+  ungroup() %>%
+  ggplot(aes(x = date,
+             y = democrat_avg)) +
+  geom_line(aes(x = date, y = democrat_avg), colour = "blue") +
+  geom_hline(yintercept = 50, colour = "black") +
+  geom_line(aes(x = date, y = republican_avg), colour = "red") +
+  scale_y_continuous(limits = c(0,100))
+
+
+polls_combined_election_eve_08 <-
+  polls_combined %>%
+  filter((year == 2008 & date <= "2008-11-03")) %>%
+  group_by(state, date, year) %>%
+  summarise(democrat_avg = mean(democrat),
+            republican_avg = mean(republican)) %>%
+  ungroup() %>%
+  group_by(state) %>%
+  slice_max(date) %>%
+  mutate(pred_winner = case_when(
+           democrat_avg > republican_avg ~ "democrat",
+           republican_avg > democrat_avg ~ "republican",
+           .default = "Tie"
+           ))
+
+polls_combined_election_eve_12 <-
+  polls_combined %>%
+  filter((year == 2012 & date <= "2012-11-05")) %>%
+  group_by(state, date, year) %>%
+  summarise(democrat_avg = mean(democrat),
+            republican_avg = mean(republican)) %>%
+  ungroup() %>%
+  group_by(state) %>%
+  slice_max(date) %>%
+  mutate(pred_winner = case_when(
+           democrat_avg > republican_avg ~ "democrat",
+           republican_avg > democrat_avg ~ "republican",
+           .default = "Tie"
+           ))
+
+polls_eve_combined_08_12 <-
+  bind_rows(polls_combined_election_eve_08, polls_combined_election_eve_12)
+
+
+
 
 
 ```
@@ -209,8 +288,10 @@ ui <- fluidPage(
                   choices = c("Betting Markets" = "intrade", "Polling Data" = "polls")),
       
       dateRangeInput("date_range", "Select Date Range:",
-                     start = min(polls_combined$date), end = max(polls_combined$date),
-                     min = min(polls_combined$date), max = max(polls_combined$date)
+                     start = min(polls_combined$date), 
+                     end = max(polls_combined$date),
+                     min = min(polls_combined$date), 
+                     max = max(polls_combined$date)
       ),
       
       pickerInput("state_sel", "Select State(s):",

@@ -1,0 +1,21 @@
+---
+title: "Final Presentation"
+format: revealjs
+---
+
+## Data
+
+*   
+
+*   
+
+
+
+## Visualization 1
+
+#theme_mininal(base_size = 20)
+#grid_arange()
+
+## Visualization 2
+
+
