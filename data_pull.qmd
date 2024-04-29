@@ -28,7 +28,8 @@ intrade08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/P
          republican_candidate = "John McCain") %>%
   rename(#"state" = "statename",
     "democrat" = "PriceD",
-    "republican" = "PriceR")
+    "republican" = "PriceR") %>%
+  filter(day <= as.Date("2008-11-06"))
 
 intrade12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/intrade12.csv") %>%
   select(2:7) %>%
@@ -37,7 +38,8 @@ intrade12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/P
          republican_candidate = "Mitt Romney") %>%
   rename(#"state" = "statename",
     "democrat" = "PriceD",
-    "republican" = "PriceR")
+    "republican" = "PriceR") %>%
+  filter(day <= as.Date("2008-11-08"))
 
 polls08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/polls08.csv") %>%
   rename("statename" = "state") %>%
@@ -233,31 +235,54 @@ ui <- fluidPage(
     ),
     mainPanel(
       tabsetPanel(
-        tabPanel("Data", dataTableOutput("data_check")),
-        tabPanel("Plot", plotOutput("plot")),
-        tabPanel("Summary", verbatimTextOutput("summary"))
+        tabPanel("Data", 
+                 dataTableOutput("data_check")),
+        tabPanel("Plot", 
+                 plotOutput("plot")),
+        tabPanel("Summary", 
+                 verbatimTextOutput("summary"))
       )
     )
   )
 )
 
+
+server <- function(input, output, session) {
   
-  server <- function(input, output, session) {
+  # relevant dates
+  observeEvent(input$election_sel,{
     
-    observeEvent(input$election_sel, input$data_source{
-    low_date <-
-      data_source %>%
-      filter(year == as.numeric(input$election_sel)) %>%
-      slice_min(date) %>%
-      pull(date) %>%
-      unique()
+    if (input$data_source == "polls") {
+      low_date <-
+        polls_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_min(date) %>%
+        pull(date) %>%
+        unique()
+      
+      high_date <-
+        polls_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_max(date) %>%
+        pull(date) %>%
+        unique()
+    }
     
-    high_date <-
-      data_source %>%
-      filter(year == as.numeric(input$election_sel)) %>%
-      slice_max(date) %>%
-      pull(date) %>%
-      unique()
+    if (input$data_source == "intrade") {
+      low_date <-
+        intrade_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_min(date) %>%
+        pull(date) %>%
+        unique()
+      
+      high_date <-
+        intrade_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_max(date) %>%
+        pull(date) %>%
+        unique()
+    }
     
     updateDateRangeInput(session = session,
                          inputId = "date_range", 
@@ -266,62 +291,79 @@ ui <- fluidPage(
                          min = low_date, 
                          max = high_date)
   })
-    
-    data <- reactive({
-      
-      
-      if(input$data_source == "intrade") {
-        data_source <- 
-          intrade_combined %>%
-          filter(state %in% input$state_sel) %>%
-          filter(date >= input$date_range[1]) %>%
-          filter(date <= input$date_range[2])
-      }
-      
-      else {
-        data_source <-
-          polls_combined %>%
-          filter(state %in% input$state_sel) %>%
-          filter(Pollster == input$poll_options) %>% 
-          filter(date >= input$date_range[1]) %>%
-          filter(date <= input$date_range[2])
-      }
-      
-      return(data_source)
-    })
-    
-    output$data_check <- renderDataTable({
-      data()
-    })
-    
-    output$plot <- renderPlot({
-      
-      # ggplot(data(), aes(x = democrat, y = republican)) +
-      #   geom_point() +
-      #   geom_abline(intercept = 0, slope = -1, linetype = "dashed", color = "red") +
-      #   labs(x = "Democrat", y = "Republican") +
-      #   # scale_x_continuous(labels = percent_format()) +
-      #   # scale_y_continuous(labels = percent_format()) +
-      #   ggtitle("Comparison of Democrat vs Republican Support") +
-      #   theme_minimal()
-      
-      data() %>%
-        ggplot(aes(x = date,
-        ))
-    })
-    
-    # output$summary <- renderPrint({
-    #   data_source <- data()
-    #   summary(data_source$democrat)
-    #   summary(data_source$republican)
-    # })
-  }
   
-  shinyApp(ui = ui, server = server)
+  # relvant polls when state selected
+  observeEvent(input$state_sel,{
+    relevant_polls <- 
+      polls_combined %>%
+      filter(state %in% input$state_sel) %>%
+      distinct(Pollster) %>% 
+      arrange(Pollster)
+    
+    updatePickerInput(session = session,
+                      inputId = "poll_options", 
+                      choices = relevant_polls, 
+                      selected = relevant_polls, 
+                      options = list(
+                        `actions-box` = TRUE, 
+                        `selected-text-format` = "count > 2",
+                        `count-selected-text` = "{0}/{1} Polls"
+                      )
+    )
+  })
   
+
+  data <- reactive({
+    if(input$data_source == "intrade") {
+      data_source <- 
+        intrade_combined %>%
+        filter(state %in% input$state_sel) %>%
+        filter(date >= input$date_range[1]) %>%
+        filter(date <= input$date_range[2])
+    }
+    
+    else {
+      data_source <-
+        polls_combined %>%
+        filter(state %in% input$state_sel) %>%
+        filter(Pollster %in% input$poll_options) %>% 
+        filter(date >= input$date_range[1]) %>%
+        filter(date <= input$date_range[2])
+    }
+    return(data_source)
+  })
+  
+  output$data_check <- renderDataTable({
+    data()
+  })
+  
+  output$plot <- renderPlot({
+    
+    ggplot(data(), aes(x = democrat, y = republican)) +
+      geom_point() +
+      geom_abline(intercept = 0, slope = -1, linetype = "dashed", color = "red") +
+      labs(x = "Democrat", y = "Republican") +
+      # scale_x_continuous(labels = percent_format()) +
+      # scale_y_continuous(labels = percent_format()) +
+      ggtitle("Comparison of Democrat vs Republican Support") +
+      theme_minimal()
+    
+    data() %>%
+      ggplot(aes(x = date,
+      ))
+  })
+  
+  # output$summary <- renderPrint({
+  #   data_source <- data()
+  #   summary(data_source$democrat)
+  #   summary(data_source$republican)
+  # })
+}
+
+shinyApp(ui = ui, server = server)
+
 ```
-  
-  
-  
-  
-  
+
+
+
+
