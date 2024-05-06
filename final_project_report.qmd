@@ -1,0 +1,17 @@
+---
+title: "Betting Markets VS. the Polls: Analyzing US Presidential Elections"
+author: "Ben Sunshine"
+date: "2024-05-10"
+format: html
+editor: visual
+---
+
+## Abstract
+|       This project introduces a Shiny web application designed to explore and compare the dynamics between betting markets and polling data in the context of US presidential elections. The application allows users to interactively analyze historical trends and make predictions based on various parameters such as election cycle, data source (betting markets or polling data), date range, state selection, and specific pollsters. Through a combination of time series plots, classification maps, and electoral college visualizations, users can delve into the evolving landscape of electoral sentiment and evaluate the accuracy of predictions against actual election outcomes. The application integrates datasets spanning multiple election cycles and employs advanced visualization techniques to facilitate insightful analysis and decision-making. This tool offers researchers, policymakers, and political enthusiasts a user-friendly platform to explore the intricate relationship between public opinion, electoral forecasts, and eventual election results.
+
+
+## Introduction
+
+## Relevant Visualizations
+
+## Conclusion

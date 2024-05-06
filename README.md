@@ -10,7 +10,7 @@ The analysis utilizes three primary data sources:
 
 2. **Polling Data**: Data from various polling organizations for the 2008 and 2012 Election cycle, which capture public opinion on candidates and issues leading up to the elections.
 
-4. **Election Result Data**: Official 2008 and 2012 election result data scraped from Wikipedia that describes the vote counts/percentages and the electoral votes the Democrat and Republican candidates are awarded. 
+4. **Election Result Data**: Official 2008 and 2012 election result data scraped from Wikipedia that describes the vote counts/percentages and the electoral votes awarded to Democrat and Republican candidates. 
 
 ## Shiny App
 
