@@ -1,0 +1,714 @@
+library(tidyverse)
+library(shinyWidgets)
+library(scales)
+library(plotly)
+library(shiny)
+library(rvest)
+library(maps)
+library(tigris)
+library(mapview)
+library(sf)
+library(usmap)
+library(leaflet)
+library(leafpop)
+
+# file that cleans and scrapes data
+source("data_cleaning.R")
+
+unique_states <- unique(polls_combined$state) %>% sort()
+unique_polls <- unique(polls_combined$Pollster) %>% sort()
+us_geo <- tigris::states(cb = TRUE, resolution = '20m')
+
+ui <- fluidPage(
+  column(12,
+         offset = 0,
+         titlePanel(title = "Betting VS. the Polls: Analayzing US Presidential Elections")),
+  sidebarLayout(fluid = T,
+                sidebarPanel(width = 3,
+                             radioButtons("election_sel", "Election Cycle:", 
+                                          choices = c("2008","2012"), 
+                                          selected = "2008"),
+                             
+                             selectInput("data_source", "Select Data Source:",
+                                         choices = c("Betting Markets" = "intrade", "Polling Data" = "polls"),
+                                         selected = "polls")
+                ),
+                mainPanel(
+                  tabsetPanel(
+                    tabPanel("Time Series Plot",
+                             fluidRow(
+                               column(3,
+                                      dateRangeInput("date_range", "Select Date Range:",
+                                                     start = min(polls_combined$date), 
+                                                     end = max(polls_combined$date),
+                                                     min = min(polls_combined$date), 
+                                                     max = max(polls_combined$date)
+                                      )
+                               ),
+                               
+                               column(3,
+                                      pickerInput("state_sel", "Select State(s):",
+                                                  choices = unique_states, 
+                                                  selected = unique_states,
+                                                  multiple = TRUE,
+                                                  options = list(
+                                                    `actions-box` = TRUE, 
+                                                    `selected-text-format` = "count > 2",
+                                                    `count-selected-text` = "{0}/{1} States")
+                                      )
+                               ),
+                               
+                               column(3,
+                                      pickerInput("poll_options", "Select Poll(s):",
+                                                  choices = unique_polls, 
+                                                  selected = unique_polls,
+                                                  multiple = TRUE,
+                                                  options = list(
+                                                    `actions-box` = TRUE, 
+                                                    `selected-text-format` = "count > 2",
+                                                    `count-selected-text` = "{0}/{1} Polls")
+                                      )
+                               )
+                             ),
+                             plotlyOutput("plot")),
+                    tabPanel("Classification Map",
+                             fluidRow(
+                               sliderInput("classifier_max_date", "Select Date for Current Classification:",
+                                           min = min(polls_combined$date), 
+                                           max = max(polls_combined$date), 
+                                           value = min(polls_combined$date), 
+                                           timeFormat = "%F")
+                             ),
+                             leafletOutput("map_plot")
+                    ),
+                    tabPanel("Electoral College Plot",
+                             fluidRow(
+                               sliderInput("electoral_max_date", "Select Date for Current Electoral Votes:",
+                                           min = min(polls_combined$date), 
+                                           max = max(polls_combined$date), 
+                                           value = min(polls_combined$date), 
+                                           timeFormat = "%F")
+                             ),
+                             plotlyOutput("stacked_barplot")
+                    )#,
+                    # tabPanel("Line Graph Data", 
+                    #          dataTableOutput("data_check")),
+                    # tabPanel("MapData", 
+                    #          dataTableOutput("map_data_check")),
+                    # 
+                    # tabPanel("Summary", 
+                    #          verbatimTextOutput("summary"))
+                  )
+                )
+  )
+)
+
+
+server <- function(input, output, session) {
+  
+  # relevant dates
+  observeEvent(input$election_sel,{
+    
+    if (input$data_source == "polls") {
+      low_date <-
+        polls_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_min(date) %>%
+        pull(date) %>%
+        unique()
+      
+      high_date <-
+        polls_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_max(date) %>%
+        pull(date) %>%
+        unique()
+    }
+    
+    if (input$data_source == "intrade") {
+      low_date <-
+        intrade_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_min(date) %>%
+        pull(date) %>%
+        unique()
+      
+      high_date <-
+        intrade_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_max(date) %>%
+        pull(date) %>%
+        unique()
+    }
+    updateDateRangeInput(session = session,
+                         inputId = "date_range", 
+                         start = low_date, 
+                         end = high_date, 
+                         min = low_date, 
+                         max = high_date)
+  })
+  
+  # relevant state select
+  observeEvent(input$election_sel,{
+    if (input$data_source == "intrade") {
+      relevant_states <-
+        intrade_combined %>%
+        filter(year == input$election_sel) %>%
+        distinct(state) %>%
+        arrange(state) %>%
+        pull()
+    }
+    else {
+      relevant_states <-
+        polls_combined %>%
+        filter(year == input$election_sel) %>%
+        distinct(state) %>%
+        arrange(state) %>%
+        pull()
+    }
+    
+    updatePickerInput(session = session,
+                      inputId = "state_sel", 
+                      choices = relevant_states, 
+                      selected = relevant_states, 
+                      options = list(
+                        `actions-box` = TRUE, 
+                        `selected-text-format` = "count > 2",
+                        `count-selected-text` = "{0}/{1} States"
+                      )
+    )
+  })
+  
+  # relvant polls when state selected
+  observeEvent(input$state_sel, {
+    relevant_polls <- polls_combined %>%
+      filter(state %in% input$state_sel) %>%
+      distinct(Pollster) %>%
+      arrange(Pollster) %>%
+      pull(Pollster)
+    
+    updatePickerInput(session = session,
+                      inputId = "poll_options", 
+                      choices = relevant_polls, 
+                      selected = relevant_polls, 
+                      options = list(
+                        `actions-box` = TRUE, 
+                        `selected-text-format` = "count > 2",
+                        `count-selected-text` = "{0}/{1} Polls"
+                      )
+    )
+  })
+  
+  
+  # line graph time series data reactive
+  data <- reactive({
+    if(input$data_source == "intrade") {
+      data_source <- 
+        intrade_combined %>%
+        filter(state %in% input$state_sel) %>%
+        filter(date >= input$date_range[1]) %>%
+        filter(date <= input$date_range[2])
+    }
+    
+    else {
+      data_source <-
+        polls_combined %>%
+        filter(state %in% input$state_sel) %>%
+        filter(Pollster %in% input$poll_options) %>% 
+        filter(date >= input$date_range[1]) %>%
+        filter(date <= input$date_range[2])
+    }
+    return(data_source)
+  })
+  
+  # output$data_check <- renderDataTable({
+  #   data()
+  # })
+  # 
+  # output$map_data_check <- renderDataTable({
+  #   data_map()
+  # })
+  
+  
+  # map data reactive
+  data_map <- reactive({
+    if(input$data_source == "intrade") {
+      data_source <-
+        intrade_combined %>%
+        filter((year == input$election_sel & date <= input$classifier_max_date)) %>%
+        group_by(state, date, year) %>%
+        summarise(democrat_avg = mean(democrat),
+                  republican_avg = mean(republican)) %>%
+        ungroup() %>%
+        group_by(state) %>%
+        slice_max(date) %>%
+        mutate(pred_winner = case_when(
+          democrat_avg > republican_avg ~ "democrat",
+          republican_avg > democrat_avg ~ "republican",
+          .default = "Tie"
+        )) %>%
+        left_join(results_2008_df %>% select(state, winner), by = "state") %>%
+        rename("actual_winner"="winner") %>%
+        mutate(color = as.factor(case_when(
+          pred_winner == "Tie" ~ "Tie",
+          actual_winner == pred_winner ~ "Correct", 
+          .default = "Incorrect")
+        )) %>%
+        ungroup()
+    }
+    
+    else {
+      data_source <-
+        polls_combined %>%
+        filter((year == input$election_sel & date <= input$classifier_max_date)) %>%
+        group_by(state, date, year) %>%
+        summarise(democrat_avg = mean(democrat),
+                  republican_avg = mean(republican)) %>%
+        ungroup() %>%
+        group_by(state) %>%
+        slice_max(date) %>%
+        mutate(pred_winner = case_when(
+          democrat_avg > republican_avg ~ "democrat",
+          republican_avg > democrat_avg ~ "republican",
+          .default = "Tie"
+        )) %>%
+        left_join(results_2008_df %>% select(state, winner), by = "state") %>%
+        rename("actual_winner"="winner") %>%
+        mutate(color = as.factor(case_when(
+          pred_winner == "Tie" ~ "Tie",
+          actual_winner == pred_winner ~ "Correct", 
+          .default = "Incorrect")
+        )) %>%
+        ungroup()
+    }
+    
+    data_source$color <- fct_relevel(data_source$color, "Correct", "Incorrect", "Tie")
+    all_data <- inner_join(us_geo, data_source, by = c("NAME" = "state"))
+    return(all_data)
+  })
+  
+  
+  # relevant dates for slider in map tab
+  observeEvent(input$election_sel,{
+    
+    if (input$data_source == "polls") {
+      low_date <-
+        polls_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_min(date) %>%
+        pull(date) %>%
+        unique()
+      
+      high_date <-
+        polls_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_max(date) %>%
+        pull(date) %>%
+        unique()
+    }
+    
+    if (input$data_source == "intrade") {
+      low_date <-
+        intrade_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_min(date) %>%
+        pull(date) %>%
+        unique()
+      
+      high_date <-
+        intrade_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_max(date) %>%
+        pull(date) %>%
+        unique()
+    }
+    
+    updateSliderInput(session = session,
+                      inputId = "classifier_max_date", 
+                      label = "Select Date for Current Classification:", 
+                      min = low_date,
+                      max = high_date, 
+                      value = high_date)
+  })
+  
+  # update the date slider for electoral college plot
+  observeEvent(input$election_sel,{
+    
+    if (input$data_source == "polls") {
+      low_date <-
+        polls_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_min(date) %>%
+        pull(date) %>%
+        unique()
+      
+      high_date <-
+        polls_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_max(date) %>%
+        pull(date) %>%
+        unique()
+    }
+    
+    if (input$data_source == "intrade") {
+      low_date <-
+        intrade_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_min(date) %>%
+        pull(date) %>%
+        unique()
+      
+      high_date <-
+        intrade_combined %>%
+        filter(year == as.numeric(input$election_sel)) %>%
+        slice_max(date) %>%
+        pull(date) %>%
+        unique()
+    }
+    
+    updateSliderInput(session = session,
+                      inputId = "electoral_max_date", 
+                      label = "Select Date for Current Electoral Votes:", 
+                      min = low_date,
+                      max = high_date, 
+                      value = high_date)
+  })
+  
+  # reactive DF for electoral college plot
+  electoral_df_react <- reactive({
+    betting_data_source <-
+      intrade_combined %>%
+      filter((year == input$election_sel & date <= input$electoral_max_date)) %>%
+      group_by(state, date, year) %>%
+      summarise(democrat_avg = mean(democrat),
+                republican_avg = mean(republican)) %>%
+      ungroup() %>%
+      group_by(state) %>%
+      slice_max(date) %>%
+      mutate(pred_winner = case_when(
+        democrat_avg > republican_avg ~ "democrat",
+        republican_avg > democrat_avg ~ "republican",
+        .default = "Tie"
+      )) %>%
+      left_join(results_2008_df %>% select(state, winner), by = "state") %>%
+      rename("actual_winner"="winner") %>%
+      mutate(color = as.factor(case_when(
+        pred_winner == "Tie" ~ "Tie",
+        actual_winner == pred_winner ~ "Correct", 
+        .default = "Incorrect")
+      )) %>%
+      ungroup()
+    
+    polls_data_source <-
+      polls_combined %>%
+      filter((year == input$election_sel & date <= input$electoral_max_date)) %>%
+      group_by(state, date, year) %>%
+      summarise(democrat_avg = mean(democrat),
+                republican_avg = mean(republican)) %>%
+      ungroup() %>%
+      group_by(state) %>%
+      slice_max(date) %>%
+      mutate(pred_winner = case_when(
+        democrat_avg > republican_avg ~ "democrat",
+        republican_avg > democrat_avg ~ "republican",
+        .default = "Tie"
+      )) %>%
+      left_join(results_2008_df %>% select(state, winner), by = "state") %>%
+      rename("actual_winner"="winner") %>%
+      mutate(color = as.factor(case_when(
+        pred_winner == "Tie" ~ "Tie",
+        actual_winner == pred_winner ~ "Correct", 
+        .default = "Incorrect")
+      )) %>%
+      ungroup()
+    
+    all_states_list <-
+      inner_join(election_results_combined, 
+                 betting_data_source, 
+                 by = "state")
+    
+    all_states_list <-
+      inner_join(all_states_list, 
+                 polls_data_source,
+                 by = "state") %>%
+      distinct(state) %>%
+      pull()
+    
+    if (input$election_sel == "2008") {
+      ev_df <- ev_2008
+    } 
+    else {
+      ev_df <- ev_2012
+    }
+    
+    intrade_ev <-
+      betting_data_source %>%
+      filter(state %in% all_states_list) %>%
+      left_join(ev_df, by = "state") %>%
+      mutate(na_ev = as.numeric(ifelse(pred_winner == "Tie", ev, 0)),
+             dem_ev = as.numeric(ifelse(pred_winner == "democrat", ev, 0)),
+             rep_ev = as.numeric(ifelse(pred_winner == "republican", ev, 0))) %>%
+      group_by(year) %>%
+      summarise(dem_ev_sum = sum(dem_ev),
+                rep_ev_sum = sum(rep_ev),
+                na_ev_sum = sum(na_ev)) %>%
+      rename("Democrat" = "dem_ev_sum",
+             "Republican" = "rep_ev_sum",
+             "NA" = "na_ev_sum",
+             "Year" = "year") %>%
+      pivot_longer(cols = c("Democrat","Republican","NA"), 
+                   values_to = "electoral_votes", 
+                   names_to = "Party") %>%
+      mutate(Year = as.factor(Year))
+    
+    
+    
+    polls_ev <-
+      polls_data_source %>%
+      filter(state %in% all_states_list) %>%
+      left_join(ev_df, by = "state") %>%
+      mutate(na_ev = as.numeric(ifelse(pred_winner == "Tie", ev, 0)),
+             dem_ev = as.numeric(ifelse(pred_winner == "democrat", ev, 0)),
+             rep_ev = as.numeric(ifelse(pred_winner == "republican", ev, 0))) %>%
+      group_by(year) %>%
+      summarise(dem_ev_sum = sum(dem_ev),
+                rep_ev_sum = sum(rep_ev),
+                na_ev_sum = sum(na_ev)) %>%
+      rename("Democrat" = "dem_ev_sum",
+             "Republican" = "rep_ev_sum",
+             "NA" = "na_ev_sum",
+             "Year" = "year") %>%
+      pivot_longer(cols = c("Democrat","Republican","NA"), 
+                   values_to = "electoral_votes", 
+                   names_to = "Party") %>%
+      mutate(Year = as.factor(Year))
+    
+    summary_results_ev <-
+      election_results_combined %>%
+      filter(state %in% all_states_list) %>%
+      group_by(year) %>%
+      summarise(dem_ev_sum = sum(dem_ev),
+                rep_ev_sum = sum(rep_ev)) %>%
+      rename("Democrat" = "dem_ev_sum",
+             "Republican" = "rep_ev_sum",
+             "Year" = "year") %>%
+      pivot_longer(cols = c("Democrat","Republican"), 
+                   values_to = "electoral_votes", 
+                   names_to = "Party") %>%
+      mutate(Year = as.factor(Year))
+    
+    
+    
+    
+    stacked_df <-
+      bind_rows(summary_results_ev %>%
+                  mutate(Source = "Official Election Results"), 
+                intrade_ev %>%
+                  mutate(Source = "Betting Predicted Results"),
+                polls_ev %>%
+                  mutate(Source = "Poll Predicted Results")) %>%
+      mutate(Party = fct_relevel(Party, "Republican", "NA","Democrat"),
+             Source = as.factor(Source),
+             Source = fct_relevel(Source, 
+                                  "Official Election Results", 
+                                  "Betting Predicted Results",
+                                  "Poll Predicted Results")) %>%
+      filter(Year == input$election_sel) %>%
+      group_by(Source) %>%
+      ungroup()
+    
+  })
+  
+  middle_val_react <- reactive({
+    middle_val <- 
+      electoral_df_react() %>%
+      filter(Source == "Official Election Results") %>%
+      filter(Year == input$election_sel) %>%
+      summarise(middle_val = sum(electoral_votes)/2) %>%
+      pull()
+  })
+  
+  # stacked bar plot for electoral college over time
+  output$stacked_barplot <- renderPlotly({
+    plot <-
+      ggplot(electoral_df_react(),
+             aes(x = Source, 
+                 y = electoral_votes, 
+                 fill = Party,
+                 text = paste0("Source: ", Source,"\n",
+                               "Party: ", Party, "\n",
+                               "Electoral Votes: ", electoral_votes)
+             )
+      ) +
+      geom_histogram(position = "stack", stat = "identity") +
+      scale_fill_manual(values = c("Republican" = "#E81B23",
+                                   "Democrat" = "#00AEF3",
+                                   "NA"="grey")) +
+      geom_hline(yintercept = middle_val_react(), colour = "black", linetype = "dashed", alpha = 0.8) +
+      labs(y = "Electoral Votes") +
+      coord_flip() +
+      theme_minimal()
+    
+    ggplotly(plot, tooltip = "text")
+  })
+  
+  # check time series data
+  # output$data_check <- renderDataTable({
+  #   data()
+  # })
+  
+  output$plot <- renderPlotly({
+    if (nrow(data()) > 0) {
+      if (
+        (input$data_source == "polls" & !is.null(input$state_sel) & !is.null(input$poll_options)) |
+        (input$data_source == "intrade" & !is.null(input$state_sel))
+      ) {
+        
+        if (input$data_source == "intrade") {
+          new_y <- "Predicted Vote Share (%)"
+          hover_label <- "AVG Betting Probability"
+        }
+        
+        else {
+          new_y <- "Polling Support (%)"
+          hover_label <- "AVG Polling Support (%)"
+        }
+        
+        print(hover_label)
+        
+        probabilities <-
+          data() %>%
+          filter(democrat + republican > 30) %>%
+          group_by(date) %>%
+          summarise(`Democrat (%)` = round(mean(democrat, na.rm = T), digits = 2),
+                    `Republican (%)` = round(mean(republican, na.rm = T), digits = 2)) %>%
+          ungroup() %>%
+          ggplot(aes(x = date,
+                     y = `Democrat (%)`)
+          ) +
+          geom_line(aes(x = date, 
+                        y = `Democrat (%)`),
+                    colour = "#00AEF3") +
+          geom_hline(yintercept = 50, colour = "black") +
+          geom_line(aes(x = date, 
+                        y = `Republican (%)`),
+                    colour = "#E81B23") +
+          
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-01-03")),
+                         text = paste0("Obama Wins Iowa Democratic Caucus\n",
+                                       "Date: 2008-01-03")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-02-05")),
+                         text = paste0("2008 Super Tuesday\n",
+                                       "Date: 2008-02-05")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-09-15")),
+                         text = paste0("Lehman Brothers File for Bankruptcy\n",
+                                       "Date: 2008-09-15")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-09-06")),
+                         text = paste0("Fannie Mae and Freddie Mac Seized\n",
+                                       "Date: 2008-09-06")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-08-29")),
+                         text = paste0("McCain Announces Palin as VP\n",
+                                       "Date: 2008-08-29")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-08-27")),
+                         text = paste0("Obama Wins Nomination\nAnnounces Biden as VP\n",
+                                       "Date: 2008-08-27")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-11-04")),
+                         text = paste0("2008 Election Day\n",
+                                       "Date: 2008-11-04")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2012-08-11")),
+                         text = paste0("2012 Iowa Caucuses\n",
+                                       "Date: 2012-08-11")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2012-03-06")),
+                         text = paste0("Super Tuesday 2012\n",
+                                       "Date: 2012-03-06")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2012-04-25")),
+                         text = paste0("RNC Declares Romney as Republican Nominee\n",
+                                       "Date: 2012-04-25")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2012-08-11")),
+                         text = paste0("Mitt Romney Announces Paul Ryan as VP\n",
+                                       "Date: 2012-08-11")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2012-10-29")),
+                         text = paste0("Hurricane Sandy\n",
+                                       "Date: 2012-10-29")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2012-11-06")),
+                         text = paste0("2012 Election Day\n",
+                                       "Date: 2012-11-06")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          scale_y_continuous(limits = c(0,100)) +
+          labs(x = "Date",
+               y = new_y) +
+          theme_minimal()
+        
+        plotly::ggplotly(probabilities,  
+                         tooltip = c("x",
+                                     "y",
+                                     "text"))
+      }
+    }
+  })
+  
+  
+  
+  colors_react <- reactive({
+    levels_color <- levels(data_map()$color)
+    if ("Correct" %in% levels_color & "Incorrect" %in% levels_color & "Tie" %in% levels_color) {
+      return(list(c("seagreen3", "red", "grey")))
+    } 
+    else if ("Correct" %in% levels_color & "Incorrect" %in% levels_color) {
+      return(list(c("seagreen3", "red")))
+    } 
+    else if ("Correct" %in% levels_color & "Tie" %in% levels_color) {
+      return(list(c("seagreen3", "grey")))
+    } 
+    else if ("Incorrect" %in% levels_color & "Tie" %in% levels_color) {
+      return(list(c("red", "grey")))
+    } 
+    else if ("Correct" %in% levels_color) {
+      return(list(c("seagreen3")))
+    } 
+    else if ("Incorrect" %in% levels_color) {
+      return(list(c("red")))
+    } 
+    else if ("Tie" %in% levels_color) {
+      return(list(c("grey")))
+    } 
+    else {
+      return(list(c("seagreen3", "red", "grey")))
+    }
+  })
+  
+  
+  output$map_plot <- renderLeaflet({
+    if(nrow(data_map()) > 0) {
+      #mapview(data_map(), zcol = "color", color = "white", col.regions = colors_react()[[1]])@map
+      mapview(data_map(), zcol = "color", color = "white", 
+              col.regions = colors_react()[[1]],
+              label = glue::glue("{data_map()$NAME}"),
+              popup = popupTable(data_map(), 
+                                 zcol = c("NAME",
+                                          "date", 
+                                          "democrat_avg", 
+                                          "republican_avg", 
+                                          "pred_winner", 
+                                          "actual_winner",
+                                          "color"),
+                                 feature.id = F, 
+                                 row.numbers = F)
+      )@map
+    }
+  })
+}
+
+shinyApp(ui = ui, server = server)
