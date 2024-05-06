@@ -20,4 +20,4 @@ The Shiny app included in this project offers the following functionality:
 
 - **Classification Map Tab**: Users can view a map that classifies states based on their predicted winners. The map updates based on the selected election cycle and date, highlighting correct, incorrect, and tied predictions.
 
-- **Electoral College Plot Tab**: This tab displays a stacked bar plot representing the distribution of electoral college votes over time. Users can compare predicted results from both betting markets and polls with actual election results.
+- **Electoral College Plot Tab**: This tab displays a stacked bar plots representing the distributions of electoral college votes over time. Users can compare predicted results from both betting markets and polls with actual election results.
