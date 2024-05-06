@@ -10,13 +10,13 @@ The analysis utilizes three primary data sources:
 
 2. **Polling Data**: Data from various polling organizations for the 2008 and 2012 Election cycle, which capture public opinion on candidates and issues leading up to the elections.
 
-4. **Election Result Data**: Official election result data scraped from Wikipedia that describes the count and percentage of votes to a candidate and the electoral votes they are awarded. 
+4. **Election Result Data**: Official 2008 and 2012 election result data scraped from Wikipedia that describes the vote counts/percentages and the electoral votes the Democrat and Republican candidates are awarded. 
 
 ## Shiny App
 
 The Shiny app included in this project offers the following functionality:
 
-- **Time Series Plot Tab**: Users can visualize time series data of average Democrat and Republican support over a selected date range. They can also filter the data by election cycle, date, state, and data source (betting data or polling data).
+- **Time Series Plot Tab**: Users can visualize time series data of average Democrat and Republican support over a selected date range. They can also filter the data by election cycle, date, state, and data source (betting data or polling data). The plot includes relevant historical events that occurred during the selected election cycle to provide context for changes in support over time.
 
 - **Classification Map Tab**: Users can view a map that classifies states based on their predicted winners. The map updates based on the selected election cycle and date, highlighting correct, incorrect, and tied predictions.
 
