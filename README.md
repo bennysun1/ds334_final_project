@@ -1,12 +1,12 @@
-# Data Visualization Final Project
+# 🇺🇸 Data Visualization Final Project 🇺🇸
 
 This project aims to analyze US presidential elections by testing the efficient market hypothesis, which argues market prices reflect all available information. The analysis is facilitated through a Shiny app that provides interactive visualizations and insights into election trends and predictions comparing data from betting markets with polling data.
 
 ## Data Sources
 
-The analysis utilizes two primary data sources:
+The analysis utilizes three primary data sources:
 
-1. **Betting Markets Data**: Data from Intrade, which where people trade contracts regarding whether a presidential candidate will win a certain state for the 2008 and 2012 election cycles. The market price of a contract varies depending on its sales. This data provide insights into the predicted outcomes of the elections based on the betting behavior of participants with market prices ranging from 0 to 100.
+1. **Betting Markets Data**: Data from Intrade, which where people trade contracts regarding whether a Democrat 🫏 or Republican 🐘 presidential candidate will win a certain state for the 2008 and 2012 election cycles. The market price of a contract varies depending on its sales. This data provide insights into the predicted outcomes of the elections based on the betting behavior of participants with market prices ranging from 0 to 100.
 
 2. **Polling Data**: Data from various polling organizations for the 2008 and 2012 Election cycle, which capture public opinion on candidates and issues leading up to the elections.
 
