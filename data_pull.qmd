@@ -7,6 +7,7 @@ editor_options:
   chunk_output_type: console
 ---
 
+## Load packages
 ```{r}
 library(tidyverse)
 library(shinyWidgets)
@@ -24,6 +25,8 @@ library(leafpop)
 state_df <- ggplot2::map_data("state")
 ```
 
+
+## Read and Clean Betting and Polling Data
 ```{r}
 states_df <- 
   tibble(state = state.name) %>%
@@ -64,7 +67,7 @@ intrade12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/P
   rename(#"state" = "statename",
     "democrat" = "PriceD",
     "republican" = "PriceR") %>%
-  filter(day < as.Date("2012-11-04"))
+  filter(day < as.Date("2012-11-06"))
 
 polls08 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PREDICTION/polls08.csv") %>%
   rename("statename" = "state") %>%
@@ -104,6 +107,8 @@ polls12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PRE
 
 ```
 
+
+## Scrape Election Result Data from Wikipedia
 ```{r}
 ## '08 election
 `2008_results_scrape` <- read_html("https://en.wikipedia.org/wiki/2008_United_States_presidential_election")
@@ -610,10 +615,10 @@ p1 <-
                                "NA"="grey")) +
   geom_hline(yintercept = middle_val, colour = "black", linetype = "dashed", alpha = 0.8) +
   coord_flip()
-theme_minimal() +
-
-
-ggplotly(p1)
+theme_minimal()
+  
+  
+  ggplotly(p1)
 ```
 
 
@@ -651,7 +656,7 @@ ui <- fluidPage(
                 ),
                 mainPanel(
                   tabsetPanel(
-                    tabPanel("Time Series",
+                    tabPanel("Time Series Plot",
                              fluidRow(
                                column(3,
                                       dateRangeInput("date_range", "Select Date Range:",
@@ -756,7 +761,6 @@ server <- function(input, output, session) {
         pull(date) %>%
         unique()
     }
-    
     updateDateRangeInput(session = session,
                          inputId = "date_range", 
                          start = low_date, 
@@ -1114,7 +1118,7 @@ server <- function(input, output, session) {
                    names_to = "Party") %>%
       mutate(Year = as.factor(Year))
     
-
+    
     
     
     stacked_df <-
@@ -1175,103 +1179,104 @@ server <- function(input, output, session) {
   # })
   
   output$plot <- renderPlotly({
-    
-    if (
-      (input$data_source == "polls" & !is.null(input$state_sel) & !is.null(input$poll_options)) |
-      (input$data_source == "intrade" & !is.null(input$state_sel))
-    ) {
-      
-      if (input$data_source == "intrade") {
-        new_y <- "Predicted Vote Share (%)"
-        hover_label <- "AVG Betting Probability"
-      }
-      
-      else {
-        new_y <- "Polling Support (%)"
-        hover_label <- "AVG Polling Support (%)"
-      }
-      
-      print(hover_label)
-      
-      probabilities <-
-        data() %>%
-        filter(democrat + republican > 30) %>%
-        group_by(date) %>%
-        summarise(`Democrat (%)` = round(mean(democrat, na.rm = T), digits = 2),
-                  `Republican (%)` = round(mean(republican, na.rm = T), digits = 2)) %>%
-        ungroup() %>%
-        ggplot(aes(x = date,
-                   y = `Democrat (%)`)
-        ) +
-        geom_line(aes(x = date, 
-                      y = `Democrat (%)`),
-                  colour = "#00AEF3") +
-        geom_hline(yintercept = 50, colour = "black") +
-        geom_line(aes(x = date, 
-                      y = `Republican (%)`),
-                  colour = "#E81B23") +
+    if (nrow(data()) > 0) {
+      if (
+        (input$data_source == "polls" & !is.null(input$state_sel) & !is.null(input$poll_options)) |
+        (input$data_source == "intrade" & !is.null(input$state_sel))
+      ) {
         
-        geom_vline(aes(xintercept = as.numeric(as.Date("2008-01-03")),
-                       text = paste0("Obama Wins Iowa Democratic Caucus\n",
-                                     "Date: 2008-01-03")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        geom_vline(aes(xintercept = as.numeric(as.Date("2008-02-05")),
-                       text = paste0("2008 Super Tuesday\n",
-                                     "Date: 2008-02-05")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        geom_vline(aes(xintercept = as.numeric(as.Date("2008-09-15")),
-                       text = paste0("Lehman Brothers File for Bankruptcy\n",
-                                     "Date: 2008-09-15")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        geom_vline(aes(xintercept = as.numeric(as.Date("2008-09-06")),
-                       text = paste0("Fannie Mae and Freddie Mac Seized\n",
-                                     "Date: 2008-09-06")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        geom_vline(aes(xintercept = as.numeric(as.Date("2008-08-29")),
-                       text = paste0("McCain Announces Palin as VP\n",
-                                     "Date: 2008-08-29")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        geom_vline(aes(xintercept = as.numeric(as.Date("2008-08-27")),
-                       text = paste0("Obama Wins Nomination\nAnnounces Biden as VP\n",
-                                     "Date: 2008-08-27")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        geom_vline(aes(xintercept = as.numeric(as.Date("2008-11-04")),
-                       text = paste0("2008 Election Day\n",
-                                     "Date: 2008-11-04")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        geom_vline(aes(xintercept = as.numeric(as.Date("2012-08-11")),
-                       text = paste0("2012 Iowa Caucuses\n",
-                                     "Date: 2012-08-11")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        geom_vline(aes(xintercept = as.numeric(as.Date("2012-03-06")),
-                       text = paste0("Super Tuesday 2012\n",
-                                     "Date: 2012-03-06")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        geom_vline(aes(xintercept = as.numeric(as.Date("2012-04-25")),
-                       text = paste0("RNC Declares Romney as Republican Nominee\n",
-                                     "Date: 2012-04-25")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        geom_vline(aes(xintercept = as.numeric(as.Date("2012-08-11")),
-                       text = paste0("Mitt Romney Announces Paul Ryan as VP\n",
-                                     "Date: 2012-08-11")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        geom_vline(aes(xintercept = as.numeric(as.Date("2012-10-29")),
-                       text = paste0("Hurricane Sandy\n",
-                                     "Date: 2012-10-29")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        geom_vline(aes(xintercept = as.numeric(as.Date("2012-11-06")),
-                       text = paste0("2012 Election Day\n",
-                                     "Date: 2012-11-06")), 
-                   colour = "black", linetype = "dashed", alpha = 0.8) +
-        scale_y_continuous(limits = c(0,100)) +
-        labs(x = "Date",
-             y = new_y) +
-        theme_minimal()
-      
-      plotly::ggplotly(probabilities,  
-                       tooltip = c("x",
-                                   "y",
-                                   "text"))
+        if (input$data_source == "intrade") {
+          new_y <- "Predicted Vote Share (%)"
+          hover_label <- "AVG Betting Probability"
+        }
+        
+        else {
+          new_y <- "Polling Support (%)"
+          hover_label <- "AVG Polling Support (%)"
+        }
+        
+        print(hover_label)
+        
+        probabilities <-
+          data() %>%
+          filter(democrat + republican > 30) %>%
+          group_by(date) %>%
+          summarise(`Democrat (%)` = round(mean(democrat, na.rm = T), digits = 2),
+                    `Republican (%)` = round(mean(republican, na.rm = T), digits = 2)) %>%
+          ungroup() %>%
+          ggplot(aes(x = date,
+                     y = `Democrat (%)`)
+          ) +
+          geom_line(aes(x = date, 
+                        y = `Democrat (%)`),
+                    colour = "#00AEF3") +
+          geom_hline(yintercept = 50, colour = "black") +
+          geom_line(aes(x = date, 
+                        y = `Republican (%)`),
+                    colour = "#E81B23") +
+          
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-01-03")),
+                         text = paste0("Obama Wins Iowa Democratic Caucus\n",
+                                       "Date: 2008-01-03")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-02-05")),
+                         text = paste0("2008 Super Tuesday\n",
+                                       "Date: 2008-02-05")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-09-15")),
+                         text = paste0("Lehman Brothers File for Bankruptcy\n",
+                                       "Date: 2008-09-15")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-09-06")),
+                         text = paste0("Fannie Mae and Freddie Mac Seized\n",
+                                       "Date: 2008-09-06")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-08-29")),
+                         text = paste0("McCain Announces Palin as VP\n",
+                                       "Date: 2008-08-29")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-08-27")),
+                         text = paste0("Obama Wins Nomination\nAnnounces Biden as VP\n",
+                                       "Date: 2008-08-27")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2008-11-04")),
+                         text = paste0("2008 Election Day\n",
+                                       "Date: 2008-11-04")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2012-08-11")),
+                         text = paste0("2012 Iowa Caucuses\n",
+                                       "Date: 2012-08-11")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2012-03-06")),
+                         text = paste0("Super Tuesday 2012\n",
+                                       "Date: 2012-03-06")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2012-04-25")),
+                         text = paste0("RNC Declares Romney as Republican Nominee\n",
+                                       "Date: 2012-04-25")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2012-08-11")),
+                         text = paste0("Mitt Romney Announces Paul Ryan as VP\n",
+                                       "Date: 2012-08-11")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2012-10-29")),
+                         text = paste0("Hurricane Sandy\n",
+                                       "Date: 2012-10-29")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          geom_vline(aes(xintercept = as.numeric(as.Date("2012-11-06")),
+                         text = paste0("2012 Election Day\n",
+                                       "Date: 2012-11-06")), 
+                     colour = "black", linetype = "dashed", alpha = 0.8) +
+          scale_y_continuous(limits = c(0,100)) +
+          labs(x = "Date",
+               y = new_y) +
+          theme_minimal()
+        
+        plotly::ggplotly(probabilities,  
+                         tooltip = c("x",
+                                     "y",
+                                     "text"))
+      }
     }
   })
   
