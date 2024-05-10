@@ -23,3 +23,4 @@ The Shiny app included in this project offers the following functionality:
 - **Electoral College Plot Tab**: This tab displays a stacked bar plots representing the distributions of electoral college votes over time. Users can compare predicted results from both betting markets and polls with actual election results.
 
 [Link to Shiny App](https://bsunshine25.shinyapps.io/ds334_final_project/)
+[Source Code for Shiny App](app.R)
