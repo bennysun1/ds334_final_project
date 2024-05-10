@@ -29,4 +29,5 @@ The Shiny app included in this project offers the following functionality:
 [Source Code for Shiny App](app.R)
 <br />
 [Written Report](final_project_report.html)
+<br />
 [Link to Blog Post 04](https://bennysun1.github.io/ds334blog/posts/blog_post_04/)
