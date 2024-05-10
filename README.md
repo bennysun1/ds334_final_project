@@ -25,3 +25,5 @@ The Shiny app included in this project offers the following functionality:
 [Link to Shiny App](https://bsunshine25.shinyapps.io/ds334_final_project/)
 <br />
 [Source Code for Shiny App](app.R)
+<br />
+[Written Report](final_project_report.html)
