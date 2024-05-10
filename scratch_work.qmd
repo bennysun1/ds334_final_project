@@ -25,7 +25,6 @@ library(leafpop)
 source("data_cleaning.R")
 ```
 
-
 ```{r}
 ## Compare probabilities of all states throught 2008 cycle
 probabilities_08 <-
@@ -142,11 +141,8 @@ polls_eve_combined_08_12 <-
 
 ```
 
-
-
-
-
 ## 2008 National Presidential Odds of Winning (All States)
+
 ```{r}
 probabilities_08 <-
   intrade_combined %>%
@@ -214,6 +210,7 @@ plotly::ggplotly(probabilities_08,  tooltip = c("x","y","text"))
 ```
 
 ## 2012 National Presidential Odds of Winning (All States)
+
 ```{r}
 probabilities_12 <-
   intrade_combined %>%
@@ -279,8 +276,6 @@ probabilities_12 <-
 
 plotly::ggplotly(probabilities_12,  tooltip = c("x","y","text"))
 ```
-
-
 
 ```{r}
 election_results_combined <-
@@ -397,18 +392,6 @@ theme_minimal()
   
   ggplotly(p1)
 ```
-
-
-
-
-
-
-
-
-
-
-
-
 
 ## Shiny App
 
@@ -1112,7 +1095,3 @@ server <- function(input, output, session) {
 shinyApp(ui = ui, server = server)
 
 ```
-
-
-
-

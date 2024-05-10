@@ -1,6 +1,6 @@
 # 🇺🇸 Data Visualization Final Project 🇺🇸
 
-This project aims to analyze 🦅 US presidential 🦅 elections by testing the efficient market hypothesis, which argues market prices reflect all available information. The analysis is facilitated through a Shiny app that provides interactive visualizations and insights into election trends and predictions comparing data from betting markets with polling data.
+This project aims to analyze whether betting markets provide a superior benchmark for candidate support than polls in 🦅 US presidential 🦅 elections. Many hypothesize betting markets should be a more accurate reflection of public sentiment because of the efficient market hypothesis, which argues market prices reflect all available information. The analysis is facilitated through a Shiny app that provides interactive visualizations and insights into election trends and predictions comparing data from betting markets with polling data.
 
 ## Data Sources
 

@@ -565,12 +565,12 @@ server <- function(input, output, session) {
       ) {
         
         if (input$data_source == "intrade") {
-          new_y <- "Predicted Vote Share (%)"
-          hover_label <- "AVG Betting Probability"
+          new_y <- "AVG Closing Price of Party Nominee's Market"
+          hover_label <- "AVG Betting Closing Price"
         }
         
         else {
-          new_y <- "Polling Support (%)"
+          new_y <- "AVG Polling Support (%)"
           hover_label <- "AVG Polling Support (%)"
         }
         
@@ -580,18 +580,19 @@ server <- function(input, output, session) {
           data() %>%
           filter(democrat + republican > 30) %>%
           group_by(date) %>%
-          summarise(`Democrat (%)` = round(mean(democrat, na.rm = T), digits = 2),
-                    `Republican (%)` = round(mean(republican, na.rm = T), digits = 2)) %>%
+          summarise(Democrat = round(mean(democrat, na.rm = T), digits = 2),
+                    Republican = round(mean(republican, na.rm = T), digits = 2)) %>%
           ungroup() %>%
-          ggplot(aes(x = date,
-                     y = `Democrat (%)`)
+          rename("Date" = "date") %>%
+          ggplot(aes(x = Date,
+                     y = Democrat)
           ) +
-          geom_line(aes(x = date, 
-                        y = `Democrat (%)`),
+          geom_line(aes(x = Date, 
+                        y = Democrat),
                     colour = "#00AEF3") +
           geom_hline(yintercept = 50, colour = "black") +
-          geom_line(aes(x = date, 
-                        y = `Republican (%)`),
+          geom_line(aes(x = Date, 
+                        y = Republican),
                     colour = "#E81B23") +
           
           geom_vline(aes(xintercept = as.numeric(as.Date("2008-01-03")),

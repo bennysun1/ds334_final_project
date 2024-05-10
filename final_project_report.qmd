@@ -2,16 +2,134 @@
 title: "Betting Markets VS. the Polls: Analyzing US Presidential Elections"
 author: "Ben Sunshine"
 date: "2024-05-10"
-format: html
-editor: visual
+format:
+  html:
+    embed-resources: true
 ---
 
-## Abstract
-|       This project introduces a Shiny web application designed to explore and compare the dynamics between betting markets and polling data in the context of US presidential elections. The application allows users to interactively analyze historical trends and make predictions based on various parameters such as election cycle, data source (betting markets or polling data), date range, state selection, and specific pollsters. Through a combination of time series plots, classification maps, and electoral college visualizations, users can delve into the evolving landscape of electoral sentiment and evaluate the accuracy of predictions against actual election outcomes. The application integrates datasets spanning multiple election cycles and employs advanced visualization techniques to facilitate insightful analysis and decision-making. This tool offers researchers, policymakers, and political enthusiasts a user-friendly platform to explore the intricate relationship between public opinion, electoral forecasts, and eventual election results.
+```{r, echo=FALSE, include=FALSE}
+source("static_visualizations.R")
+```
 
+## Abstract
+
+|       This project introduces a Shiny application designed to compare and evaluate whether betting markets provide a superior benchmark to polling data for gauging public support in US presidential elections. The application allows users to interactively analyze historical trends based on various parameters such as election cycle, data source (betting markets or polling data), date range, state selection, and specific pollsters. Through a combination of time series plots, classification maps, and electoral college visualizations, users can analyze electoral sentiment and evaluate the accuracy of predictions against actual election outcomes. The data used to compare betting markets and polls included betting market data from Intrade, polling data, and election results from the 2008 and 2012 presidential elections. In 2008, the Intrade markets outperformed US polling data on election-eve, accurately classifying all states except Indiana and Missouri. These two states, each with eleven electoral votes, were the only misclassifications, resulting in a a perfect electoral vote prediction. Conversely, pollsters inaccurately classified Indiana, Missouri, and North Carolina, wrongfully allocating 15 electoral votes to the Republican candidate, John McCain. In 2012, both the betting markets and polls failed to accurately classify Indiana, North Carolina, and Florida. This led to an over allocation of 29 electoral votes to the Republican candidate, Mitt Romney. When comparing the deviation between predicted and actual results, traditional polls tended to reflect close races in misclassified swing states, while betting markets made more distinct predictions.
 
 ## Introduction
 
+|       Political polls have long face scrutiny due to issues like sampling bias, response bias, and question wording. In response, some economists suggest applying the efficient market hypothesis to elections, which states prices in a free market reflect all available information, implying that all prices should be traded at a fair market value. This project aims to explore whether prices for contracts in betting markets for presidential candidates are better predictors of election outcomes compared to traditional polls. The analysis utilizes data from Intrade, a former Irish web-based trading exchange, sourced from Kosuke Imai (Harvard University)'s GitHub repository. Intrade operated as a prediction market where members trade contracts on the likelihood of certain events occurring. Their contracts are on a point scale of 0 to 100 points with 1 point equal to \$0.10 USD. A contract with a price of \$0 suggests a given event will not occur. Intrade contracts offer an interpretation of the global market's opinion on the probability of a particular presidential candidate winning. Variables from this data set included the date, state name, state abbreviation, price of democrat candidate's contract, price of a republican candidate's contract the volume of traders of democrat contracts, and volume of traders of republican contracts. In both the 2008 and 2012 data sets, there many observations where the prices of both democrat and republican contracts were very low, so to keep visuals readable I filter for only observations where the sum of the democrat and republican contract prices were above \$30. Polling data was also sourced from Kosuke Imai's github repository, that contained polling data for all US states. Over 400 polls are included. Some of the variables from this data set include the state, pollster name, predicted democrat candidate support, predicted republican candidate support, and the mid-date of when the poll was conducted.
+
 ## Relevant Visualizations
 
+### Election Classification Results on Election-Eve of 2008
+
+<div style="text-align: center;">
+2008 Intrade Markets Classifications
+<div>
+
+```{r echo=FALSE}
+# Intrade classification map '08 election eve
+intrade_map_08
+```
+
+<br />
+
+<div style="text-align: center;">
+2008 Pollsters Classifications
+<div>
+```{r, echo=FALSE}
+# Pollster classification map '08 election eve
+polls_map_08
+```
+
+<br />
+
+<div style="text-align: left;">
+
+
+|       As seen above in the 2008 election, Intrade's prediction markets outperformed traditional pollsters by one state (North Carolina). In North Carolina, the average contract value for a John McCain win was 12.1 points, while for an Obama win, it was 86.1 points. This advantage for McCain was not reflected in the most recent poll available at the time, conducted on October 31st, which showed McCain leading with 49% compared to Obama's 48% in North Carolina. The pollsters identified North Carolina and Missouri as close races. They projected Obama at 48% and McCain at 49% in North Carolina, and Obama at 47% and McCain at 46% in Missouri. In contrast, in Missouri, the average contract value for Obama winning the presidential race was 55.6 points, while for McCain winning, it was 48 points. Both betting markets and pollsters misclassified Missouri and Indiana.
+
+<div>
+
+
+
+<br />
+
+### Comparing 2008 Election Time Series Data of Intrade Contract Value and Pollster Predicted Support
+
+```{r, echo=FALSE}
+# Lehman Brothers go under
+# this state misclasified
+nc_08_betting
+```
+
+<br /> 
+
+```{r, echo=FALSE}
+nc_08_polls
+```
+
+<br />
+
+
+
+<div style="text-align: left;">
+
+|       Comparing the time series data between pollsters' predicted support for each candidate and the value of each contract for Obama and McCain winning the 2008 election brings interesting information to light. Analysis of the Intrade contract closing prices in the fall of 2008 show a sudden decline in contract value for John McCain. The inflection point, marked by the second dashed line from the right, coincides with the day Lehman Brothers filed for bankruptcy on September 15th, 2008. This event was a catalyst, representing the largest bankruptcy in US history, with $691 billion in assets held before its collapse. Its repercussions rippled through the US economy, causing international market turmoil and the downfall of numerous banks. Interestingly, this significant decline in contract value is not mirrored in the polling data. The polling data depicts a close race between Obama and McCain, with neck-and-neck competition until election day. A similar trend is observable in multiple states, where support for McCain dwindles as the 2008 recession nears.
+
+<div>
+
+### Election Classification Results on Election-Eve of 2012
+
+<div style="text-align: center;">
+2012 Intrade Markets Classifications
+<div>
+
+```{r, echo=FALSE}
+intrade_map_12
+```
+<br />
+
+<div style="text-align: center;">
+2012 Pollster Classifications
+<div>
+```{r, echo=FALSE}
+intrade_map_12
+```
+
+<br />
+
+
+
+
+### Comparing 2012 Election Time Series Data of Intrade Contract Value and Pollster Predicted Support
+<br />
+
+```{r, echo=FALSE}
+nc_12_betting
+```
+
+<br />
+
+```{r, echo=FALSE}
+nc_12_polls
+```
+
+
+<br />
+<div style="text-align: left;">
+
+|      As seen above in the classification maps, both Intrade markets and pollsters demonstrated the same state classification performance, with each identifying three states incorrectly (Indiana, North Carolina, and Florida). What is interesting however is the deviation between contract values for Intrade contracts and the difference in polling percentages. From the time series data, it can be seen Intrade contracts for Mitt Romney winning the 2012 presidential election were above 50 points since March of 2008, even reaching a near all time high of 79.5 on election-eve. In comparison the pollsters reflected a near dead heat throughout 2012 between Obama and Romney. While Intrade contracts sustained high prices for Mitt Romney in 2012, interestingly the biggest decrease in contact value occurred in August of 2012 when he announced Paul Ryan to be his running mate.
+
+
+<div>
+
+
 ## Conclusion
+
+<div style="text-align: left;">
+
+|       In conclusion, this project highlighted some of the differences between Intrade's prediction market and traditional polling data for US presidential elections. With the help of an interactive Shiny application, we were able to explore fluctuations in candidate support throughout election cycles and analyze how each data source predicted election outcomes on election-eves. The largest take away from this analysis was the prominent role current events play in contract prices in prediction markets. Events like the Lehman Brothers' bankruptcy in 2008 and Mitt Romney's announcement of Paul Ryan as his running mate in 2012 caused significant impacts on contract prices for candidates. That being said, in swing state races during the 2012 election, pollsters demonstrated a higher degree of accuracy in reflecting close races, while prediction markets exhibited greater divergence between contract prices of candidates. While one of the strengths of prediction markets is their daily updates, the Intrade markets analyzed in this study were not entirely representative of American sentiment as they were foreign prediction markets who allowed US bettors. Unlike American polls, non US citizens could participate in the prediction market which could skew results. Polls however are no perfect model for gauging sentiment either. They are plagued by issues such as small sample sizes and methodological biases, but still provide valuable information in regard to voter preferences. However, polling data cannot be conducted daily like prediction markets, limiting its ability to capture live shifts in public sentiment. Ultimately, it is necessary to consider both prediction markets and polling data as tools for election outcome prediction.
+
+
+<div>
