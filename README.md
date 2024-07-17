@@ -6,7 +6,7 @@ This project aims to analyze whether betting markets provide a superior benchmar
 
 The analysis utilizes three primary data sources:
 
-1. **Betting Markets Data**: Data from Intrade, which where people trade contracts regarding whether a Democrat 🫏 or Republican 🐘 presidential candidate will win a certain state for the 2008 and 2012 election cycles. The market price of a contract varies depending on its sales. This data provide insights into the predicted outcomes of the elections based on the betting behavior of participants with market prices ranging from 0 to 100.
+1. **Betting Markets Data**: Data from Intrade, where people trade contracts regarding whether a Democrat 🫏 or Republican 🐘 presidential candidate will win a certain state for the 2008 and 2012 election cycles. The market price of a contract varies depending on its sales. This data provide insights into the predicted outcomes of the elections based on the betting behavior of participants with market prices ranging from 0 to 100.
 
 2. **Polling Data**: Data from various polling organizations for the 2008 and 2012 Election cycle, which capture public opinion on candidates and issues leading up to the elections.
 
