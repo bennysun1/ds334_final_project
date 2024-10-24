@@ -86,11 +86,15 @@ polls12 <- read_csv("https://raw.githubusercontent.com/kosukeimai/qss/master/PRE
 
 `2008_election_tables` <- `2008_results_scrape` %>% html_nodes("table.wikitable")
 
-`2008_results_table` <- `2008_election_tables`[[10]]
+`2008_results_table` <- `2008_election_tables`[[11]]
 
 `2008_results_df` <- 
   `2008_results_table` %>% 
   html_table(header = T) 
+
+# write.csv(`2008_results_table`, 'scraped_2008_results.csv')
+
+
 
 new_names <- c("Column1", 
                "Column2", 
@@ -153,7 +157,7 @@ ev_2008 <- results_2008_df %>% select(state, ev)
 
 `2012_election_tables` <- `2012_results_scrape` %>% html_nodes("table.wikitable")
 
-`2012_results_table` <- `2012_election_tables`[[8]]
+`2012_results_table` <- `2012_election_tables`[[9]]
 
 `2012_results_df` <- 
   `2012_results_table` %>% 
